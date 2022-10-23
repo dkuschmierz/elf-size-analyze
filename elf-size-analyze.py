@@ -27,6 +27,8 @@ import itertools
 import subprocess
 import platform
 
+from ndicts.ndicts import NestedDict
+
 
 # default logging configuration
 log = logging.getLogger('elf-size-analyze')
@@ -97,6 +99,8 @@ sections must have ALLOC flag and: for RAM - have WRITE flag, for ROM - not have
                                 help='print only files (to be used with cumulative size enabled)')
     printing_group.add_argument('-a', '--alternating-colors', action='store_true',
                                 help='use alternating colors when printing symbols')
+    printing_group.add_argument('-j', '--json', action='store_true',
+                                help='create json output')                           
 
     printing_group.add_argument('--no-demangle', action='store_true',
                                 help='disable demangling of C++ symbol names')
@@ -895,6 +899,27 @@ class SymbolsTreeByPath:
             protolines.append(self.Protoline(depth, node))
         return protolines
 
+    def _generate_node_dict(self, min_size):
+        # generate dict of nodes
+        nd = NestedDict()
+        for node, depth in self.tree_root.pre_order():
+            if node.is_root():
+                continue
+            elif not (node.is_symbol() or node.is_path()):
+                raise Exception('Wrong symbol type encountered')
+            elif node.is_symbol() and node.data.size < min_size:
+                continue
+            nodePath = list()
+            iterNode = node
+            nodePath.insert(0, iterNode.data)
+            while iterNode.parent.data != None: 
+                nodePath.insert(0, iterNode.parent.data)   
+                iterNode = iterNode.parent    
+
+            nd[tuple(nodePath)] = node.cumulative_size   
+
+        return nd.to_dict()
+
     def _add_field_strings(self, protolines, indent, human_readable):
         for line in protolines:
             indent_str = ' ' * indent * line.depth
@@ -1039,6 +1064,22 @@ def main():
         for line in lines:
             line.print()
 
+    def create_json(header, symbols):
+        tree = SymbolsTreeByPath(symbols)
+        if not args.no_merge_paths:
+            tree.merge_paths(args.fish_paths)
+        if not args.no_cumulative_size:
+            tree.accumulate_sizes()
+        if args.sort_by_name:
+            tree.sort(key=lambda symbol: symbol.name, reverse=False)
+        else:  # sort by size
+            tree.sort(key=lambda symbol: symbol.size, reverse=True)
+        if not args.no_totals:
+            tree.calculate_total_size()
+        min_size = math.inf if args.files_only else args.min_size
+        nodedict = tree._generate_node_dict(min_size=min_size)
+        print(nodedict)
+
     def filter_symbols(section_key):
         secs = filter(section_key, sections)
         secs_str = ', '.join(s.name for s in secs)
@@ -1060,8 +1101,14 @@ ERROR: No symbols from given section found or all were ignored!
     if args.rom:
         print_tree('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
 
+        if args.json:
+            create_json('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
+
     if args.ram:
         print_tree('RAM', filter_symbols(lambda sec: sec and sec.occupies_ram()))
+
+        if args.json:
+            create_json('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
 
     if args.use_sections:
         nums = list(map(int, args.use_sections))
