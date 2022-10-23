@@ -26,9 +26,10 @@ import argparse
 import itertools
 import subprocess
 import platform
+from tkinter import N
 
 from ndicts.ndicts import NestedDict
-
+from mergedeep import merge, Strategy
 
 # default logging configuration
 log = logging.getLogger('elf-size-analyze')
@@ -901,8 +902,9 @@ class SymbolsTreeByPath:
 
     def _generate_node_dict(self, min_size):
         # generate dict of nodes
-        nd = NestedDict()
+        nodeDict = dict()
         for node, depth in self.tree_root.pre_order():
+            nd = NestedDict()
             if node.is_root():
                 continue
             elif not (node.is_symbol() or node.is_path()):
@@ -916,9 +918,11 @@ class SymbolsTreeByPath:
                 nodePath.insert(0, iterNode.parent.data)   
                 iterNode = iterNode.parent    
 
-            nd[tuple(nodePath)] = node.cumulative_size   
+            nd[tuple(nodePath)+("data",)] = node.data
+            nd[tuple(nodePath)+("cumulative_size",)] = node.cumulative_size
+            merge(nodeDict, nd.to_dict())            
 
-        return nd.to_dict()
+        return nodeDict
 
     def _add_field_strings(self, protolines, indent, human_readable):
         for line in protolines:
