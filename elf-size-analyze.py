@@ -18,6 +18,7 @@
 import os
 import re
 import sys
+import json
 import math
 import shutil
 import logging
@@ -27,6 +28,7 @@ import itertools
 import subprocess
 import platform
 from tkinter import N
+from matplotlib.font_manager import json_dump
 
 from ndicts.ndicts import NestedDict
 from mergedeep import merge, Strategy
@@ -913,12 +915,13 @@ class SymbolsTreeByPath:
                 continue
             nodePath = list()
             iterNode = node
-            nodePath.insert(0, iterNode.data)
-            while iterNode.parent.data != None: 
-                nodePath.insert(0, iterNode.parent.data)   
+            nodePath.insert(0, iterNode.data.name if iterNode.is_symbol() else iterNode.data)
+            while iterNode.parent.data != None:
+                nodePath.insert(0, "childrens")
+                nodePath.insert(0, iterNode.parent.data.name if iterNode.parent.is_symbol() else iterNode.parent.data)
                 iterNode = iterNode.parent    
 
-            nd[tuple(nodePath)+("data",)] = node.data
+            nd[tuple(nodePath)+("name",)] = node.data.name if node.is_symbol() else node.data
             nd[tuple(nodePath)+("cumulative_size",)] = node.cumulative_size
             merge(nodeDict, nd.to_dict())            
 
@@ -1082,7 +1085,8 @@ def main():
             tree.calculate_total_size()
         min_size = math.inf if args.files_only else args.min_size
         nodedict = tree._generate_node_dict(min_size=min_size)
-        print(nodedict)
+        with open(args.elf.replace(".elf", "_"+header+"Analysis.json"), "w") as jsonFile:
+            json.dump(nodedict, jsonFile) 
 
     def filter_symbols(section_key):
         secs = filter(section_key, sections)
@@ -1103,16 +1107,16 @@ ERROR: No symbols from given section found or all were ignored!
         Section.print(sections)
 
     if args.rom:
-        print_tree('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
-
         if args.json:
             create_json('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
+        else:
+            print_tree('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
 
     if args.ram:
-        print_tree('RAM', filter_symbols(lambda sec: sec and sec.occupies_ram()))
-
         if args.json:
-            create_json('ROM', filter_symbols(lambda sec: sec and sec.occupies_rom()))
+            create_json('RAM', filter_symbols(lambda sec: sec and sec.occupies_ram()))
+        else:
+            print_tree('RAM', filter_symbols(lambda sec: sec and sec.occupies_ram()))
 
     if args.use_sections:
         nums = list(map(int, args.use_sections))
