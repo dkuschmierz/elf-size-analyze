@@ -27,11 +27,9 @@ import argparse
 import itertools
 import subprocess
 import platform
-from tkinter import N
-from matplotlib.font_manager import json_dump
 
 from ndicts.ndicts import NestedDict
-from mergedeep import merge, Strategy
+from mergedeep import merge
 
 # default logging configuration
 log = logging.getLogger('elf-size-analyze')
