@@ -6,7 +6,7 @@ Requires Python 3, readelf, nm and (optional) c++filt. To be able to extract pat
 
 Use `python elfSizeAnalyze.py -h` for usage info. 
 
-![Example output](example.jpg)
+![Example output](https://raw.githubusercontent.com/dkuschmierz/elf-size-analyze/master/example.jpg)
 
 # Contributors
 - [jedrzejboczar](https://github.com/jedrzejboczar) Jędrzej Boczar
